@@ -42,3 +42,12 @@ func NewValidationError(message string) *AppErr {
 		Message: message,
 	}
 }
+
+func NewAutenticationError(message string) *AppErr {
+	return &AppErr{
+		Code:    http.StatusUnauthorized,
+		Message: message,
+	}
+}
+
+
