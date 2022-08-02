@@ -4,11 +4,14 @@ import (
 	"capi/domain"
 	"capi/logger"
 	"capi/service"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -117,17 +120,45 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func authMiddleware(next http.Handler) http.Handler{
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		next.ServeHTTP(w, r)
 		token := r.Header.Get("Authorization")
 
-		//split token -> ambil tokennya buang bearernya 
+		//check token validation has bearer token 
+		if !strings.Contains(token, "Bearer"){
+			writeResponse(w, http.StatusBadRequest, "Invalid Token")
+			return
+		}
 
-		//passing token, err := jwt.Parse
+		//Bearer token
+		tokenString :=""
 
-		//Check token validation
-		logger.Info(token)
-        
-	
-		next.ServeHTTP(w, r)
+		//split token, ambil tokennya buang bearernya
+		arrToken := strings.Split(token, "")
+		if len (arrToken) == 2 {
+			tokenString = arrToken[1]
+		}
+
+		//pasing token, err := jwt.parse{}
+		parseToken, err := jwt.Parse(tokenString, func(t *jwt.Token) (interface{}, error) {
+			return []byte ("rahasia"), nil
+		})
 		
-    })
-}
+
+		//chack token validation
+		if err != nil {
+			writeResponse(w, http.StatusInternalServerError, err.Error())
+			return
+		} 
+		
+		if parseToken.Valid{
+			writeResponse(w, http.StatusOK, parseToken)
+		} else if errors.Is(err, jwt.ErrTokenMalformed){
+			writeResponse(w, http.StatusUnauthorized, err.Error())
+		}else if errors.Is(err, jwt.ErrTokenExpired){
+			writeResponse(w, http.StatusUnauthorized, err.Error())
+		}else {
+			writeResponse(w, http.StatusUnauthorized, err.Error())
+		}
+		logger.Info(tokenString)
+		next.ServeHTTP(w, r)
+	})}
